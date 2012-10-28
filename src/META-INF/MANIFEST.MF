@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: libs/log4j-1.2.17.jar libs/sam-1.77.jar
+Main-Class: QualityExtractor
+
