@@ -131,7 +131,7 @@ public class QualityExtractor {
         for(byte b : record.getReadBases())
             read.add(new Byte(b));
         Collections.reverse(read);
-         Stack<Byte> reads = new Stack<Byte>();
+        Stack<Byte> reads = new Stack<Byte>();
         reads.addAll(read);
 
         ArrayList<Byte> qual = new ArrayList<Byte>();
@@ -153,6 +153,8 @@ public class QualityExtractor {
                     break;
                 case D:
                     for(int i = 0; i < elem.getLength(); ++i){
+                        //TODO compute quality as the mean value of the neighbours.
+                        //NB! think about *** case
                         resultRead.add(new Byte((byte)'-'));
                         resultQuality.add(new Byte((byte)'*'));
                     }
@@ -274,6 +276,7 @@ public class QualityExtractor {
                                 totalQuality[3][j][0] += quality[i];
                                 totalQuality[3][j][1]++;
                                 break;
+                            //TODO add case '-' as new symbol
                         }
                         i++; j++;
                     }
@@ -285,10 +288,30 @@ public class QualityExtractor {
                 PrintWriter out = new PrintWriter(new FileWriter("contig_" + bedRecord.getStartIndex() + "-"
                 + bedRecord.getStopIndex() + ".fastq"));
 
+                //TODO expand with new symbol for DEL
                 char[] dictNucleotid = {'A', 'C', 'G', 'T'};
+                //restore the reference genome: find the most frequent symbol in each position. In most cases it is enough
+                char[] reference = new char[bedRecord.getStopIndex() - bedRecord.getStartIndex()];
+                for(int i = 0; i < reference.length; ++i)
+                {
+                    int max_count = totalQuality[0][i][1], nucleotid_index = 0;
+                    for(int k = 1; k < dictNucleotid.length; ++k)
+                        if(totalQuality[k][i][1] > max_count)
+                        {
+                            max_count = totalQuality[k][i][1];
+                            nucleotid_index = k;
+                        }
+
+                    if(max_count > 0)
+                        reference[i] = dictNucleotid[nucleotid_index];
+                    else
+                        reference[i] = 'N';
+                }
+
+                //print 4 different quality strings: first - is the quality if A is in every position, second - if C, and so on
                 for(int k = 0; k < dictNucleotid.length; ++k){
                     out.println("@BED:" + bedRecord.getStartIndex() + " - " + bedRecord.getStopIndex()+ "(" + dictNucleotid [k] + ")");
-                    out.println("Here should be reference contig");
+                    out.println(reference);
                     out.println("+");
                     for(int j = 0; j < bedRecord.getStopIndex() - bedRecord.getStartIndex(); ++j)
                         if(totalQuality[k][j][1] > 0)
