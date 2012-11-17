@@ -115,6 +115,7 @@ public class QualityExtractor {
     public static void getAlignedQualities(SAMRecord record, byte[] outputQuality, byte[] outputRead)
     {
         Logger logger = Logger.getLogger(QualityExtractor.class);
+        logger.debug("Read Name: " + record.getReadName());
         logger.debug("Read string: " + record.getReadString());
         logger.debug("Quality string: " + record.getBaseQualityString());
         logger.debug("Cigar string: " + record.getCigarString());
@@ -142,7 +143,6 @@ public class QualityExtractor {
         qualities.addAll(qual);
 
         //TODO think of how to use AlignmentBlock instead
-
         for(CigarElement elem : elements) {
             switch (elem.getOperator()) {
                 case M:
@@ -153,8 +153,6 @@ public class QualityExtractor {
                     break;
                 case D:
                     for(int i = 0; i < elem.getLength(); ++i){
-                        //TODO compute quality as the mean value of the neighbours.
-                        //NB! think about *** case
                         resultRead.add(new Byte((byte)'-'));
                         resultQuality.add(new Byte((byte)'*'));
                     }
@@ -180,6 +178,36 @@ public class QualityExtractor {
             outputQuality[i] = resultQuality.get(i);
         }
 
+        //deal with DEL - replace quality with the mean value from the neighbours
+        int i = 0;
+        while(i < outputQuality.length)
+        {
+            if(outputQuality[i] != '*')
+            {
+                i++;
+                continue;
+            }
+            if(outputQuality.length == i)
+                break;
+            int left_boundary = i;
+            while(i < outputQuality.length && outputQuality[i] == '*')
+                i++;
+            int right_boundary = i - 1;
+
+            byte mean_quality;
+            if(0 == left_boundary && outputQuality.length - 1 == right_boundary)
+                mean_quality = 0;
+            else if(0 == left_boundary)
+                mean_quality = outputQuality[right_boundary + 1];
+            else if(outputQuality.length - 1 == right_boundary)
+                mean_quality = outputQuality[left_boundary - 1];
+            else //normal case - we have neighbours on the left and on the right
+                mean_quality = (byte)((outputQuality[left_boundary - 1] + outputQuality[right_boundary + 1]) / 2);
+
+            //fill DEL regions with mean values from the neighbours
+            for(int j = 0; j < right_boundary - left_boundary + 1; ++j)
+                outputQuality[left_boundary + j] = mean_quality;
+        }
         logger.debug("Aligned read and quality strings of length " + outputRead.length + ": " + new String(outputRead).toString());
     }
 
@@ -204,11 +232,11 @@ public class QualityExtractor {
                         " " + bedRecord.getStopIndex() + " with " + records.size() + " sequences");
 
                 //three-dimensional array for calculating mean value for all reads int this position
-                //0-th dimension - nucleotide (A, C, G, T). We calculate quality separately for each nucleotide
+                //0-th dimension - nucleotide (A, C, G, T, DEL). We calculate quality separately for each nucleotide
                 //1-st dimension - sum of qualities of all reads for i-th position in the aligned sequence,
                 //2-nd dimension - number of reads that were used to calculate the value in the first row
                 //So, totalQuality[i][0] / totalQuality[i][1] is the mean value for quality for this position
-                int [][][] totalQuality = new int[4][bedRecord.getStopIndex() - bedRecord.getStartIndex() + 1][2];
+                int [][][] totalQuality = new int[5][bedRecord.getStopIndex() - bedRecord.getStartIndex() + 1][2];
 
                 logger.info("Start calculating the mean value for quality...");
                 for(SAMRecord samRecord : records){
@@ -251,6 +279,7 @@ public class QualityExtractor {
                     }
 
                     //copy SAMRecord to BEDRecord boundaries
+                    copySize += i; //if i != 0, because we need to iterate copySize times
                     while(i < copySize)
                     {
                         if('*' == quality[i]) //skip read with no quality
@@ -276,7 +305,10 @@ public class QualityExtractor {
                                 totalQuality[3][j][0] += quality[i];
                                 totalQuality[3][j][1]++;
                                 break;
-                            //TODO add case '-' as new symbol
+                            case '-':
+                                totalQuality[4][j][0] += quality[i];
+                                totalQuality[4][j][1]++;
+                                break;
                         }
                         i++; j++;
                     }
@@ -289,7 +321,7 @@ public class QualityExtractor {
                 + bedRecord.getStopIndex() + ".fastq"));
 
                 //TODO expand with new symbol for DEL
-                char[] dictNucleotid = {'A', 'C', 'G', 'T'};
+                char[] dictNucleotid = {'A', 'C', 'G', 'T', 'D'};
                 //restore the reference genome: find the most frequent symbol in each position. In most cases it is enough
                 char[] reference = new char[bedRecord.getStopIndex() - bedRecord.getStartIndex()];
                 for(int i = 0; i < reference.length; ++i)
