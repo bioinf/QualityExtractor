@@ -317,10 +317,9 @@ public class QualityExtractor {
                 logger.info("Done. Start constructing the result quality string..");
 
                 //print output quality string
-                PrintWriter out = new PrintWriter(new FileWriter("contig_" + bedRecord.getStartIndex() + "-"
+                PrintWriter out = new PrintWriter(new FileWriter("region_" + bedRecord.getStartIndex() + "-"
                 + bedRecord.getStopIndex() + ".fastq"));
 
-                //TODO expand with new symbol for DEL
                 char[] dictNucleotid = {'A', 'C', 'G', 'T', 'D'};
                 //restore the reference genome: find the most frequent symbol in each position. In most cases it is enough
                 char[] reference = new char[bedRecord.getStopIndex() - bedRecord.getStartIndex()];
@@ -347,9 +346,11 @@ public class QualityExtractor {
                     out.println("+");
                     for(int j = 0; j < bedRecord.getStopIndex() - bedRecord.getStartIndex(); ++j)
                         if(totalQuality[k][j][1] > 0)
-                            out.print((char)(QualityExtractor.QUAL_BASE + totalQuality[k][j][0] / totalQuality[k][j][1]));
+//                            out.print((char)(QualityExtractor.QUAL_BASE + totalQuality[k][j][0] / totalQuality[k][j][1]));
+                            out.print((int)(totalQuality[k][j][0] / totalQuality[k][j][1]) + ":");
                         else
-                            out.print('*'); //no quality is stored
+                            out.print("*:"); //no quality is stored
+//                            out.print('*'); //no quality is stored
                     out.print("\n");
                 }
                 out.close();
