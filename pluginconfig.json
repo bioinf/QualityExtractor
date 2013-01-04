@@ -1,0 +1,28 @@
+{
+    "runinfo":{
+        "raw_data_dir":"/results/plugins/QualityExtractor/cftr.bed",
+        "analysis_dir":"/results/analysis/output/Home/test_bpp_006",
+        "library_key":"TCAG",
+        "testfrag_key":"ATCG",
+        "results_dir":"/home/bpuc",
+        "url_root":"http://thing2.ite",
+        "net_location":"http://ecto5.ite",
+        "bed":"/results/plugins/QualityExtractor/cftr.bed"
+    },
+    "pluginconfig":{
+        "plugin_name":"ftpTransfer",
+        "plugin_path":"/results/plugins/ftpTransfer",
+        "plugin_pk":"7",
+        "ftpserver":"iontorrent.com",
+        "ftpuser":"bpuc",
+        "ftppassword":"bernard1",
+        "ftpsubdir":"my_data_dir_in_the_cloud",
+        "debug":"1",
+        "limit_vmem":"8388608",
+        "ftpfiles":["fastq","sff","sam","bam"]
+    },
+    "globalconfig":{
+        "debug":"0",
+        "limit_vmem":"4194304"
+    }
+}

@@ -1,0 +1,25 @@
+<component name="ArtifactManager">
+  <artifact name="QualityExtractor:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/QualityExtractor</output-path>
+    <root id="root">
+      <element id="archive" name="QualityExtractor.jar">
+        <element id="directory" name="META-INF">
+          <element id="file-copy" path="$PROJECT_DIR$/src/META-INF/MANIFEST.MF" />
+        </element>
+        <element id="module-output" name="QualityExtractor" />
+        <element id="file-copy" path="$PROJECT_DIR$/TestData/cftr.bed" />
+        <element id="file-copy" path="$PROJECT_DIR$/src/launch.sh" />
+      </element>
+      <element id="directory" name="libs">
+        <element id="file-copy" path="$PROJECT_DIR$/libs/log4j-1.2.17.jar" />
+        <element id="file-copy" path="$PROJECT_DIR$/libs/sam-1.77.jar" />
+        <element id="file-copy" path="$PROJECT_DIR$/libs/diffutils-1.2.1.jar" />
+        <element id="file-copy" path="$PROJECT_DIR$/libs/junit-4.10.jar" />
+        <element id="file-copy" path="$PROJECT_DIR$/libs/picard-1.80.jar" />
+      </element>
+      <element id="file-copy" path="$PROJECT_DIR$/src/launch.sh" />
+      <element id="file-copy" path="$PROJECT_DIR$/cftr.bed" />
+      <element id="file-copy" path="$PROJECT_DIR$/pluginconfig.json" />
+    </root>
+  </artifact>
+</component>
