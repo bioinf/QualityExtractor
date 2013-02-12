@@ -17,14 +17,19 @@ public class QualityExtractor {
 
         Logger logger = Logger.getLogger(QualityExtractor.class);
 
-        if(args.length != 2) {
+        logger.info("Launch Arguments count: " + args.length + "\nArguments list: ");
+        for(String str : args){
+            logger.info(str + ";");
+        }
+        if(args.length != 4) {
             logger.error("Not enough arguments to launch. Quit.");
             return;
         }
 
         logger.info("Start processing...");
         createBamIndex(new File(args[0]), new File(args[0] + ".bai"));
-        calcMeanQuality(extractReadsFromBAM(new File(args[0]), new File(args[1])));
+        calcMeanQuality(extractReadsFromBAM(new File(args[0]), new File(args[1])),
+                args[2], OutputFormat.VCF, args[3]);
         logger.info("Processing finished.");
     }
 
@@ -38,8 +43,7 @@ public class QualityExtractor {
         Logger logger = Logger.getLogger(QualityExtractor.class);
         try{
             logger.info("BAM indexing started");
-            if(outputBamIndexFile.exists())
-            {
+            if(outputBamIndexFile.exists()){
                 logger.info("BAM index file " + outputBamIndexFile.getName() + " already exists. New index will not be created.");
                 return;
             }
@@ -76,18 +80,16 @@ public class QualityExtractor {
         Map<BEDRecord, List<SAMRecord>> resDict = new HashMap<BEDRecord, java.util.List<SAMRecord>>();
         try{
             final BEDFileReader inputBed = new BEDFileReader(inputBedFile);
-            final SAMFileReader inputSam = new SAMFileReader(inputSamOrBamFile, new File(inputSamOrBamFile.getName() + ".bai"));
+            final SAMFileReader inputSam = new SAMFileReader(inputSamOrBamFile, new File(inputSamOrBamFile.getAbsolutePath() + ".bai"));
             if(!inputSam.hasIndex())
                 throw new Exception("Index file is invalid");
-            while (inputBed.hasNext())
-            {
+            while (inputBed.hasNext()){
                 BEDRecord record = inputBed.getBEDRecord();
                 logger.info("BEDRecord: " + record.getContigName()+ "\t" + record.getStartIndex() + '\t' + record.getStopIndex());
                 SAMRecordIterator it = inputSam.query(record.getContigName(), record.getStartIndex(), record.getStopIndex(), false);
                 List<SAMRecord> list = new ArrayList<SAMRecord>();
                 int totalRecords = 0;
-                while (it.hasNext())
-                {
+                while (it.hasNext()){
                     SAMRecord rec = it.next();
                     list.add(rec);
                     totalRecords++;
@@ -112,8 +114,7 @@ public class QualityExtractor {
      * @param record
      * @return
      */
-    public static void getAlignedQualities(final SAMRecord record, byte[] outputQuality, byte[] outputRead)
-    {
+    public static void getAlignedQualities(final SAMRecord record, byte[] outputQuality, byte[] outputRead){
         Logger logger = Logger.getLogger(QualityExtractor.class);
         logger.debug("Read Name: " + record.getReadName());
         logger.debug("Read string: " + record.getReadString());
@@ -215,7 +216,7 @@ public class QualityExtractor {
      * Calculates mean quality for particular BEDRecord's associated reads in SAMRecord
      * @param dict BEDRecords with associated SAMRecords
      */
-    public static void calcMeanQuality(final Map<BEDRecord, List<SAMRecord>> dict) {
+    public static void calcMeanQuality(final Map<BEDRecord, List<SAMRecord>> dict, String refGenome, OutputFormat format, String folder) {
         Logger logger = Logger.getLogger(QualityExtractor.class);
         IndexedFastaSequenceFile hg = null;
         PrintWriter out = null;
@@ -224,7 +225,7 @@ public class QualityExtractor {
             Set s = dict.entrySet();
             Iterator it = s.iterator();
             //TODO obtain path from environment variables
-            hg = new IndexedFastaSequenceFile(new File("/Users/Kos/Dropbox/Bioinf/Data/chromosomes/hg19.fa"));
+            hg = new IndexedFastaSequenceFile(new File(refGenome));
 
             //Iterate through map records
             while(it.hasNext()){
@@ -278,15 +279,21 @@ public class QualityExtractor {
                 logger.info("Done. Start constructing the result quality string..");
 
                 //print output quality string
-                out = new PrintWriter(new FileWriter("region_" + bedRecord.getStartIndex() + "-"
-                + bedRecord.getStopIndex() + ".fastq"));
+                out = new PrintWriter(new FileWriter(folder + "/region_" + bedRecord.getStartIndex() + "-"
+                + bedRecord.getStopIndex() + (format.equals(OutputFormat.FASTQ) ? ".fastq" : ".vcf")));
 
                 ReferenceSequence refSequence =  hg.getSubsequenceAt(bedRecord.getContigName(), bedRecord.getStartIndex(), bedRecord.getStopIndex());
-                printVcf(out, dataSet, bedRecord, refSequence);
+                switch (format){
+                    case VCF:
+                        printVcf(out, dataSet, bedRecord, refSequence);
+                        break;
+                    case FASTQ:
+                        printFastq(out, dataSet, bedRecord, refSequence);
+                        break;
+                }
                 out.close();
             }
         } catch (Exception e){
-
             if(out != null)
                 out.close();
             System.out.println("Error while data processing: " + e.toString());
@@ -332,7 +339,7 @@ public class QualityExtractor {
                     ".\t" +                                     //ID
                     (char)ref[i] + "\t" +                       //REF
                     (bestNucleotid == (char)ref[i] ? "." : String.valueOf(bestNucleotid)) + "\t" +  //ALT
-                    ((bestNucleotidCount == 0) ? "*" : (char)(QualityExtractor.QUAL_BASE + bestNucleotidQuality / bestNucleotidCount)) + "\t" + //QUAL
+                    ((bestNucleotidCount == 0) ? "." : (bestNucleotidQuality / bestNucleotidCount)) + "\t" + //QUAL
                     ".\t" +                                     //FILTER
                     ".\t"                                       //INFO
             );
@@ -393,4 +400,9 @@ public class QualityExtractor {
     private static char[] dictNucleotid = {'A', 'C', 'G', 'T', '-'};
 
     private static final byte QUAL_BASE = 33;
+
+    public static enum OutputFormat{
+        VCF,
+        FASTQ
+    }
 }
